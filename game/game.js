@@ -39,8 +39,13 @@ document.addEventListener('keyup', function(event) {
   }
 });
 
+var lastUpdateTime = (new Date()).getTime();
 setInterval(function() {
   ws.send(JSON.stringify(movement));
+  var currentTime = (new Date()).getTime();
+  var timeDifference = currentTime - lastUpdateTime;
+  player.x += 5 * timeDifference;
+  lastUpdateTime = currentTime;
 }, 1000 / 60);
 
 var canvas = document.getElementById('canvas');
