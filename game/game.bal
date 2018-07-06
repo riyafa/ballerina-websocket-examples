@@ -8,15 +8,24 @@ import ballerina/math;
 json players = {};
 task:Timer? timer;
 map<http:WebSocketListener> consMap;
-type event {
+type event record {
    boolean ^"left";
     boolean ^"right";
     boolean up;
     boolean down;
 };
+
+@http:WebSocketServiceConfig {
+    path: "/game"
+}
 service<http:WebSocketService> game bind { port: 9090 } {
     boolean first = true;
     onOpen(endpoint ep) {
+        if(first){
+            timer = new task:Timer(broadcast, handleError, 1000 / 60, delay = 30);
+            first = false;
+            timer.start();
+        }
         io:println("Client["+ep.id+"] joined");
         players[ep.id] = {
             "x": 300,
@@ -24,7 +33,6 @@ service<http:WebSocketService> game bind { port: 9090 } {
             "color": getRandomColor()
         };
         consMap[ep.id] = ep;
-        broadcast();
     }
 
     onText(endpoint ep, string text) {
@@ -43,7 +51,6 @@ service<http:WebSocketService> game bind { port: 9090 } {
         if (data.down) {
             player.y = (check <int>player.y) + 5;
         }
-        broadcast();
     }
     onClose(endpoint caller, int statusCode, string reason) {
         io:println("Client["+caller.id+"] left");
@@ -79,4 +86,8 @@ function getRandomColor() returns string {
         i = i + 1;
     }
     return color;
+}
+
+function handleError(error e){
+    log:printError("Error when broadcasting", err=e);
 }
