@@ -23,9 +23,8 @@ service<http:WebSocketService> basic bind { port: 9090 } {
     }
 
     // This resource is triggered when a new binary frame is received from a client.
-    onBinary(endpoint caller, blob binary) {
+    onBinary(endpoint caller, byte[] binary) {
         io:println("\nNew binary message received");
-        io:println("UTF-8 decoded binary message: " + binary.toString("UTF-8"));
         caller->pushBinary(binary) but {
             error e => log:printError("Error occurred when sending binary", err = e)
         };
@@ -33,14 +32,14 @@ service<http:WebSocketService> basic bind { port: 9090 } {
 
     // This resource is triggered when a ping message is received from the client. If this resource is not implemented,
     // a pong message is automatically sent to the connected endpoint when a ping is received.
-    onPing(endpoint caller, blob data) {
+    onPing(endpoint caller, byte[] data) {
         caller->pong(data) but {
             error e => log:printError("Error occurred when closing the connection", err = e)
         };
     }
 
     // This resource is triggered when a pong message is received.
-    onPong(endpoint caller, blob data) {
+    onPong(endpoint caller, byte[] data) {
         io:println("Pong received");
     }
 
