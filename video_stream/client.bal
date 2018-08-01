@@ -45,11 +45,11 @@ function getFileChannel(string filePath,
 }
 
 function readBytes(io:ByteChannel channel,
-                   int numberOfBytes) returns (blob, int) {
+                   int numberOfBytes) returns (byte[], int) {
 
     var result = channel.read(numberOfBytes);
     match result {
-        (blob, int) content => {
+        (byte[], int) content => {
             return content;
         }
         error readError => {
@@ -63,7 +63,7 @@ function sendFile(io:ByteChannel src, http:WebSocketClient ep) {
 
     int bytesChunk = 30000;
     int readCount = 0;
-    blob readContent;
+    byte[] readContent;
     boolean doneCopying = false;
     int count = 0;
     while (!doneCopying) {

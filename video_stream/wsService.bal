@@ -15,7 +15,7 @@ service<http:WebSocketService> wsService bind { port: 9090 } {
         log:printInfo("New client connected");
     }
 
-    onBinary(endpoint ep, blob data, boolean finalFragment) {
+    onBinary(endpoint ep, byte[] data, boolean finalFragment) {
         if (channelClosed && !finalFragment){
             fileChannel = untaint getFileChannel(dstFilePath + "file" + fileNum + ".mkv", io:WRITE);
             fileNum = fileNum + 1;
@@ -36,7 +36,7 @@ service<http:WebSocketService> wsService bind { port: 9090 } {
 }
 
 function writeBytes(io:ByteChannel channel,
-                    blob content,
+                    byte[] content,
                     int startOffset = 0) returns int {
 
     var result = channel.write(content, startOffset);
