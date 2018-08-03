@@ -1,4 +1,4 @@
-var ws = new WebSocket("ws://10.100.8.3:9090/game");
+var ws = new WebSocket("ws://localhost:9090/game");
 
 var movement = {
   up: false,

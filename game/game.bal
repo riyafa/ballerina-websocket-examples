@@ -5,73 +5,82 @@ import ballerina/runtime;
 import ballerina/task;
 import ballerina/math;
 
-json players = {};
 task:Timer? timer;
 map<http:WebSocketListener> consMap;
-type event record {
-   boolean ^"left";
-    boolean ^"right";
-    boolean up;
-    boolean down;
+type Event record {
+    boolean ^"left",
+    boolean ^"right",
+    boolean up,
+    boolean down,
+    !...
 };
 
+type Player record {
+    int x,
+    int y,
+    string color,
+    !...
+};
+map<Player> players;
 @http:WebSocketServiceConfig {
     path: "/game"
 }
 service<http:WebSocketService> game bind { port: 9090 } {
     boolean first = true;
-    onOpen(endpoint ep) {
-        if(first){
+    onOpen(endpoint caller) {
+        if (first){
             timer = new task:Timer(broadcast, handleError, 1000 / 60, delay = 30);
             first = false;
             timer.start();
         }
-        io:println("Client["+ep.id+"] joined");
-        players[ep.id] = {
-            "x": 300,
-            "y": 300,
-            "color": getRandomColor()
+        io:println("Client[" + caller.id + "] joined");
+        players[caller.id] = {
+            x: 300,
+            y: 300,
+            color: getRandomColor()
         };
-        consMap[ep.id] = ep;
+        consMap[caller.id] = caller;
     }
 
-    onText(endpoint ep, string text) {
-        //log:printInfo(text);
-        event data = check <event>getJson(text, "UTF-8");
-        json player = players[ep.id];
-        if (data.^"left"){
-            player.x = (check <int>player.x) - 5;
+    onText(endpoint caller, Event event) {
+        Player player;
+        match players[caller.id] {
+            Player value => player = value;
+            () => {error err = { message: "Player has to be initialized" };
+            throw err;}
         }
-        if (data.up){
-            player.y = (check <int>player.y) - 5;
+        if (event.^"left"){
+            player.x = player.x - 5;
         }
-        if (data.^"right"){
-            player.x = (check <int>player.x) + 5;
+        if (event.up){
+            player.y = player.y - 5;
         }
-        if (data.down) {
-            player.y = (check <int>player.y) + 5;
+        if (event.^"right"){
+            player.x = player.x + 5;
+        }
+        if (event.down) {
+            player.y = player.y + 5;
         }
     }
     onClose(endpoint caller, int statusCode, string reason) {
-        io:println("Client["+caller.id+"] left");
+        io:println("Client[" + caller.id + "] left");
         _ = consMap.remove(caller.id);
-        players.remove(caller.id);
+        _ = players.remove(caller.id);
     }
-}
 
-function getJson(string content, string encoding) returns json {
-    io:StringReader reader = new io:StringReader(content, encoding = encoding);
-    json result = check reader.readJson();
-    var closeResult = reader.close();
-    return result;
+    onError(endpoint caller, error err) {
+        log:printError ("Client[" + caller.id + "] left ", err = err);
+        _ = consMap.remove(caller.id);
+        _ = players.remove(caller.id);
+    }
 }
 
 function broadcast() {
     endpoint http:WebSocketListener ep;
-    string text = players.toString();
+    json data = check <json>players;
     foreach id, con in consMap {
         ep = con;
-        ep->pushText(text) but {
+        ep->pushText(data) but {
             error e => log:printError("Error sending message", err = e)
         };
     }
@@ -88,6 +97,6 @@ function getRandomColor() returns string {
     return color;
 }
 
-function handleError(error e){
-    log:printError("Error when broadcasting", err=e);
+function handleError(error e) {
+    log:printError("Error when broadcasting", err = e);
 }
