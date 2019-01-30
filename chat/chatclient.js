@@ -15,7 +15,8 @@ function setUsername() {
 }
 
 function connect() {
-  var serverUrl = "ws://" + window.location.hostname + ":6502/chat";
+  // var serverUrl = "ws://" + window.location.hostname + ":6502/chat";
+  var serverUrl = "ws://localhost:6502/chat";
 
   connection = new WebSocket(serverUrl);
 

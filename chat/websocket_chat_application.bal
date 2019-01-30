@@ -2,29 +2,35 @@ import ballerina/io;
 import ballerina/log;
 import ballerina/http;
 
-@final string NAME = "NAME";
+const string NAME = "NAME";
+int count = 1;
 // Stores the connection IDs of users who join the chat.
-map<http:WebSocketListener> connectionsMap;
+map<http:WebSocketCaller> connectionsMap = {};
 @http:WebSocketServiceConfig {
     path: "/chat"
 }
-service<http:WebSocketService> chatApp bind { port: 6502 } {
-    onOpen(endpoint caller) {
+service chatApp on new http:WebSocketListener(6502) {
+     resource function onOpen(http:WebSocketCaller caller) {
         json message = { ^"type": "id", id: caller.id };
-        caller->pushText(message.toString()) but {
-            error e => log:printError("Error sending message", err = e)
-        };
+        var err = caller->pushText(message);
+        if (err is error) {
+            log:printError("Error occurred when sending text", err = err);
+        }
         connectionsMap[caller.id] = caller;
     }
 
     // Broadcast the messages sent by a user.
-    onText(endpoint caller, string text) {
-        json msg;
-        msg = getJson(text);
+    resource function onText(http:WebSocketCaller caller, json msg) {    
         if (msg.^"type".toString() == "message"){
             msg.name = getAttributeStr(caller, NAME);
             msg.text = msg.text.toString().replaceAll("(<([^>]+)>)", "");
         } else if (msg.^"type".toString() == "username"){
+            string name = msg.name.toString();
+            if(!isUsernameUnique(name)){
+                msg.^"type" = "rejectusername";
+                msg.name = name + count;
+                count+=1;
+            }
             caller.attributes[NAME] = msg.name;
             sendUserListToAll();
         }
@@ -32,7 +38,7 @@ service<http:WebSocketService> chatApp bind { port: 6502 } {
     }
 
     // Broadcast that a user has left the chat once a user leaves the chat.
-    onClose(endpoint caller, int statusCode, string reason) {
+    resource function onClose(http:WebSocketCaller caller, int statusCode, string reason) {
         _ = connectionsMap.remove(caller.id);
         sendUserListToAll();
     }
@@ -40,35 +46,39 @@ service<http:WebSocketService> chatApp bind { port: 6502 } {
 
 
 function broadcast(json msg) {
-    endpoint http:WebSocketListener ep;
-    foreach id, con in connectionsMap {
-        ep = con;
-        ep->pushText(msg.toString()) but {
-            error e => log:printError("Error sending message", err = e)
-        };
+    foreach var (id, con) in connectionsMap {
+         var err = con->pushText(msg);
+        if (err is error) {
+            log:printError("Error occurred when sending message", err = err);
+        }
     }
 }
 
-function getAttributeStr(http:WebSocketListener ep, string key) returns (string) {
+function getAttributeStr(http:WebSocketCaller ep, string key) returns (string) {
     var name = <string>ep.attributes[key];
     return name;
 }
 
-function getJson(string content) returns json {
-    io:StringReader reader = new io:StringReader(content);
-    json result = check reader.readJson();
-    var closeResult = reader.close();
-    return result;
-}
-
 function sendUserListToAll() {
-    endpoint http:WebSocketListener ep;
     json users = [];
     int i = 0;
-    foreach id, con in connectionsMap {
+    foreach var (id, con) in connectionsMap {
         users[i] = getAttributeStr(con, NAME);
         i = i + 1;
     }
     json userMsg = { "type": "userlist", users: users };
     broadcast(userMsg);
+}
+
+function isUsernameUnique(string name) returns boolean {
+  boolean isUnique = true;
+  foreach var (id, con) in connectionsMap {
+    if(con.attributes[NAME] != ()) {
+        if (getAttributeStr(con, NAME) == name) {
+        isUnique = false;
+        break;
+        }
+    }
+  }
+  return isUnique;
 }
