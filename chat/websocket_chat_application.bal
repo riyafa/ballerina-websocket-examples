@@ -47,6 +47,7 @@ service chatApp on new http:WebSocketListener(6502) {
 
     resource function onError(http:WebSocketCaller caller, error err) {
         _ = connectionsMap.remove(caller.id);
+        log:printError("Error occured", err = err);
         sendUserListToAll();
     }
 }
