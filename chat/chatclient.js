@@ -20,20 +20,20 @@ function connect() {
 
   connection = new WebSocket(serverUrl);
 
-  connection.onopen = function(evt) {
+  connection.onopen = function (evt) {
     document.getElementById("login").disabled = true;
     document.getElementById("text").disabled = false;
     document.getElementById("send").disabled = false;
   };
 
-  connection.onmessage = function(evt) {
+  connection.onmessage = function (evt) {
     var f = document.getElementById("chatbox").contentDocument;
     var text = "";
     var msg = JSON.parse(evt.data);
     var time = new Date(msg.date);
     var timeStr = time.toLocaleTimeString();
 
-    switch(msg.type) {
+    switch (msg.type) {
       case "id":
         clientID = msg.id;
         setUsername();
@@ -51,7 +51,7 @@ function connect() {
         var ul = "";
         var i;
 
-        for (i=0; i < msg.users.length; i++) {
+        for (i = 0; i < msg.users.length; i++) {
           ul += msg.users[i] + "<br>";
         }
         document.getElementById("userlistbox").innerHTML = ul;
