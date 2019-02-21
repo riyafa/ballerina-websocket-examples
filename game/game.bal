@@ -4,23 +4,25 @@ import ballerina/runtime;
 import ballerina/task;
 import ballerina/math;
 
-task:Timer? timer;
-map<http:WebSocketCaller> consMap = {};
 type Event record {
     boolean ^"left";
     boolean ^"right";
     boolean up;
     boolean down;
-    !...
+    !...;
 };
 
 type Player record {
     int x;
     int y;
     string color;
-    !...
+    !...;
 };
+
+task:Timer? timer;
+map<http:WebSocketCaller> consMap = {};
 map<Player> players = {};
+
 @http:WebSocketServiceConfig {
     path: "/game"
 }
@@ -30,8 +32,7 @@ service chatApp on new http:WebSocketListener(9090) {
         if (self.first) {
             timer = new task:Timer(broadcast, handleError, 1000 / 60, delay = 30);
             self.first = false;
-            timer.
-            start();
+            timer.start();
         }
         log:printInfo("Client[" + caller.id + "] joined");
         players[caller.id] = {
