@@ -24,9 +24,9 @@ service httpService on new http:Listener(9090) {
             wsCaller = caller->acceptWebSocketUpgrade({
                 "X-hi": "Welcome!!"
             });
-            wsCaller.attributes["address"] = address;
-            wsCaller.attributes["city"] = city;
-            wsCaller.attributes["age"] = req.getQueryParams()["age"];
+            wsCaller.setAttribute("address", address);
+            wsCaller.setAttribute("city", city);
+            wsCaller.setAttribute("age", req.getQueryParams()["age"]);
         } else {
             var err = caller->cancelWebSocketUpgrade(400, "Invalid name");
             if (err is error) {
@@ -48,7 +48,7 @@ service httpService on new http:Listener(9090) {
             resp.statusCode = 500;
         } else {
             io:println(payload);
-            resp.setPayload("HTTP POST received:"+ check string.convert(untaint payload)+"\n");
+            resp.setPayload("HTTP POST received:" + <@untiant>payload.toString() + "\n");
         }
 
         var err = caller->respond(resp);
@@ -59,12 +59,13 @@ service httpService on new http:Listener(9090) {
 }
 
 service wsService = @http:WebSocketServiceConfig {
-    subProtocols: ["xml, json"] ,idleTimeoutInSeconds: 20
-    } service {
+    subProtocols: ["xml, json"],
+    idleTimeoutInSeconds: 20
+} service {
 
     resource function onOpen(http:WebSocketCaller caller) {
-        string msg = "Thank you for joining. Your address: " + <string>caller.attributes["address"]+", "
-        + <string>caller.attributes["city"]+". And you are "+<string>caller.attributes["age"]+" years of age.";
+        string msg = "Thank you for joining. Your address: " + caller.getAttribute("address").toString() + ", "
+        + caller.getAttribute("city").toString() + ". And you are " + caller.getAttribute("age").toString() + " years of age.";
         var err = caller->pushText(msg);
         if (err is error) {
             log:printError("Error in sending text", err = err);
