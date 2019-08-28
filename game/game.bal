@@ -1,59 +1,63 @@
 import ballerina/http;
 import ballerina/log;
-import ballerina/runtime;
-import ballerina/task;
 import ballerina/math;
+import ballerina/task;
 
-type Event record {
-    boolean ^"left";
-    boolean ^"right";
+type Event record {|
+    boolean 'left;
+    boolean 'right;
     boolean up;
     boolean down;
-    !...;
-};
+|};
 
-type Player record {
+type Player record {|
     int x;
     int y;
     string color;
-    !...;
-};
-
-task:Timer? timer;
+|};
+boolean first = true;
+task:Scheduler timer = new ({intervalInMillis: 1000 / 60, initialDelayInMillis: 30});
 map<http:WebSocketCaller> consMap = {};
 map<Player> players = {};
 
 @http:WebSocketServiceConfig {
     path: "/game"
 }
-service chatApp on new http:WebSocketListener(9090) {
-    boolean first = true;
+service chatApp on new http:Listener(9090) {
     resource function onOpen(http:WebSocketCaller caller) {
-        if (self.first) {
-            timer = new task:Timer(broadcast, handleError, 1000 / 60, delay = 30);
-            self.first = false;
-            timer.start();
+        if (first) {
+            first = false;
+            var err = timer.attach(broadcast);
+            if (err is error) {
+                log:printError("Error attaching timer", err = err);
+                return;
+            }
+            err =  timer.start();
+            if (err is error) {
+            log:printError("Error starting timer", err = err);
         }
-        log:printInfo("Client[" + caller.id + "] joined");
-        players[caller.id] = {
-                x: 300,
-                y: 300,
-                color: getRandomColor()
+        }
+        log:printInfo("Client [" + caller.getConnectionId() + "] joined");
+        players[caller.getConnectionId()] = {
+            x: 300,
+            y: 300,
+            color: getRandomColor()
         };
-        consMap[caller.id] = caller;
+        consMap[caller.getConnectionId()] = caller;
     }
 
     resource function onText(http:WebSocketCaller caller, Event event) {
-        var player = players[caller.id];
+
+        var player = players[caller.getConnectionId()];
         if (player is Player) {
 
-            if (event.^"left") {
+            if (event.'left) {
                 player.x = player.x - 5;
             }
             if (event.up) {
                 player.y = player.y - 5;
             }
-            if (event.^"right") {
+            if (event.'right) {
                 player.x = player.x + 5;
             }
             if (event.down) {
@@ -64,28 +68,29 @@ service chatApp on new http:WebSocketListener(9090) {
         }
     }
     resource function onClose(http:WebSocketCaller caller, int statusCode, string reason) {
-        log:printInfo("Client[" + caller.id + "] left");
-        _ = consMap.remove(caller.id);
-        _ = players.remove(caller.id);
+        log:printInfo("Client[" + caller.getConnectionId() + "] left");
+        _ = consMap.remove(caller.getConnectionId());
+        _ = players.remove(caller.getConnectionId());
     }
 
     resource function onError(http:WebSocketCaller caller, error err) {
-        log:printError("Client[" + caller.id + "] left ", err = err);
-        _ = consMap.remove(caller.id);
-        _ = players.remove(caller.id);
+        log:printError("Client[" + caller.getConnectionId() + "] left ", err = err);
+        _ = consMap.remove(caller.getConnectionId());
+        _ = players.remove(caller.getConnectionId());
     }
 }
 
-function broadcast() returns error? {
-    json data = check json.convert(players);
-    foreach var (id, con) in consMap {
-        var err = con->pushText(data);
-        if (err is error) {
-            log:printError("Error sending message", err = err);
+service broadcast = service {
+    resource function onTrigger() returns error? {
+        json data = check json.constructFrom(players);
+        foreach var con in consMap {
+            var err = con->pushText(data);
+            if (err is error) {
+                log:printError("Error sending message", err = err);
+            }
         }
     }
-    
-}
+};
 
 function getRandomColor() returns string {
     string[] letters = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"];
@@ -96,8 +101,4 @@ function getRandomColor() returns string {
         i = i + 1;
     }
     return color;
-}
-
-function handleError(error e) {
-    log:printError("Error when broadcasting", err = e);
 }
