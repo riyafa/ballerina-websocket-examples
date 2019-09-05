@@ -7,7 +7,7 @@ import ballerina/http;
     subProtocols: ["text", "json"],
     idleTimeoutInSeconds: 120
 }
-service basic on new http:WebSocketListener(9090) {
+service basic on new http:Listener(9090) {
 
     // This resource is triggered after a successful client connection.
      resource function onOpen(http:WebSocketCaller caller) {
@@ -50,7 +50,7 @@ service basic on new http:WebSocketListener(9090) {
     // `http:WebSocketServiceConfig` annotation.
     resource function onIdleTimeout(http:WebSocketCaller caller) {        
         io:println("\nReached idle timeout");
-        io:println("Closing connection " + caller.id);
+        io:println("Closing connection " + caller.getConnectionId());
         var err = caller->close(statusCode = 1001, reason = "Connection timeout");
         if (err is error) {
             log:printError("Error occured when closing the connection", err = err);
@@ -59,7 +59,7 @@ service basic on new http:WebSocketListener(9090) {
 
     // This resource is triggered when a client connection is closed from the client side.
     resource function onClose(http:WebSocketCaller caller, int statusCode, string reason) {
-        io:println("\nClient left with status code " + statusCode + " because " + reason);
+        io:println("\nClient left with status code ", statusCode, " because ", reason);
     }
 
      // This resource is triggered when an error occurred in the connection or the transport.
